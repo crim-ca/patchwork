@@ -1,0 +1,11 @@
+.idea
+*~
+*.iml
+logs
+project/*
+target/*
+tmp
+.git/
+.sbt
+.DS_Store
+*.db
