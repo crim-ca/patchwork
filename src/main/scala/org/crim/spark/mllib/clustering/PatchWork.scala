@@ -1,3 +1,15 @@
+/**
+ * PatchWork is a novel density-grid clustering algorithm for Apache Spark.
+ * It has linear complexity and near linear horizontal scalability.
+ * As a result, PatchWork can cluster a billion points in a few minutes only.
+ *
+ * MIT License (c) 2015 Computer Research Institute of Montreal
+ *
+ * @author Thomas Triplet <thomas.triplet@crim.ca>
+ * @author Frank Gouineau
+ *
+ */
+
 package org.crim.spark.mllib.clustering
 
 import org.apache.spark.Logging
@@ -6,25 +18,34 @@ import org.apache.spark.storage.StorageLevel
 
 import scala.collection.mutable.ListBuffer
 
-/**
- * PatchWork is a novel clustering algorithm for Apache Spark.
- * It has linear complexity and near linear horizontal scalability.
- * As a result, PatchWork can cluster a billion points in a few minutes only,
- * a 40x improvement over Spark MLLib native implementation of the well-known K-Means.
-*/
+object PatchWorkUtils {
+  type DataPoint = Array[Double]
+  type Epsilon = Array[Double]
+}
+import PatchWorkUtils._
 
-class PatchWorkCluster (private var id: Int) extends Serializable{
+/**
+ * A cluster is defined by the list of cells within.
+ * @param id
+ */
+class PatchWorkCluster(private var id: Int) extends Serializable {
   def getID: Int = this.id
   val cellsList: ListBuffer[PatchWorkCellKey] = new ListBuffer[PatchWorkCellKey]
 }
 
-class PatchWorkCellKey (var cellNumber:String,var cellArray:Array[Int],var cluster:Option[PatchWorkCluster]) extends Serializable {
+/**
+ *  //TODO http://stackoverflow.com/questions/30785615/reducebykey-with-a-byte-array-as-the-key
+ * @param cellNumber
+ * @param cellArray
+ * @param cluster
+ */
+class PatchWorkCellKey(var cellNumber: String, var cellArray: Array[Int], var cluster: Option[PatchWorkCluster]) extends Serializable {
   def this(p: Array[Int]) {
-    this(p.mkString(",").trim,p,None)
+    this(p.mkString(",").trim, p, None)
   }
 
   def this(p: String) {
-    this(p,p.split(",").map(_.toInt),None)
+    this(p, p.split(",").map(_.toInt), None)
   }
 
   override def equals(o: Any) = o match {
@@ -33,13 +54,17 @@ class PatchWorkCellKey (var cellNumber:String,var cellArray:Array[Int],var clust
   }
 }
 
+/**
+ * A cell (or hypercube) in the n-dimensional feature space
+ * @param cellNumber The ID of the cell. Array of size n.
+ */
 class PatchWorkCell(val cellNumber: Array[Int]) extends Serializable {
+  /* Number of data points in the cell */
+  var ptsInCell: Int = 0
 
-  def this(p: Array[Double], eps: Array[Double]) {
+  def this(p: DataPoint, eps: Epsilon) {
     this(p.zipWithIndex.map(x => math.ceil(x._1 / eps(x._2)).toInt))
   }
-
-  var ptsInCell: Int = 0
 
   def addPtsToCell = this.ptsInCell += 1
 
@@ -54,105 +79,75 @@ class PatchWorkCell(val cellNumber: Array[Int]) extends Serializable {
   }
 }
 
-class PatchWordModel(private var epsilon: Array[Double],
-                     var cardinalsPatchwork: RDD[(String, Int)],
-                     var clusters: List[PatchWorkCluster]) extends Serializable {
+class PatchWorkModel(private var epsilon: Epsilon,
+    var cardinalsPatchwork: RDD[(String, Int)],
+    var clusters: List[PatchWorkCluster]) extends Serializable {
 
-  def getEpsilon: Array[Double] = epsilon
-
-  def setEpsilon(epsilon: Array[Double]): this.type = {
-    this.epsilon = epsilon
-    this
-  }
-
-  def setCardinalsPatchwork(cardinalsPatchwork: RDD[(String, Int)]): this.type = {
-    this.cardinalsPatchwork = cardinalsPatchwork
-    this
-  }
-
-  def getCardinalsPatchwork: RDD[(String, Int)] = this.cardinalsPatchwork
-
-  def predict(point: Array[Double]): PatchWorkCluster = {
-    val cellKey = new PatchWorkCellKey(point.zipWithIndex.map(x => math.ceil(x._1/this.epsilon(x._2)).toInt))
+  /**
+   * After the clusters have been identified, determines in which cluster
+   * data point belongs to.
+   *
+   * @param point A data point
+   * @return The cluster the data point belongs to
+   */
+  def predict(point: DataPoint): PatchWorkCluster = {
+    val cellKey = new PatchWorkCellKey(point.zipWithIndex.map(x => math.ceil(x._1 / this.epsilon(x._2)).toInt))
     val cl = this.clusters.filter(cluster => cluster.cellsList.contains(cellKey))
     if (cl.isEmpty) {
       // point is noise
       val cluster = new PatchWorkCluster(-1)
       cluster.cellsList.append(cellKey)
       cluster
-    }
-    else {
+    } else {
       cl.head
     }
   }
 }
 
-class PatchWork(
-                 // cell size
-                 private var epsilon: Array[Double],
-                 // min number of points in a cell
-                 private var minPts: Int,
-                 // density changes between cells
-                 private var ratio: Double,
-                 // minimum spatial size of clusters
-                 private var minCell: Int
-                 ) extends Serializable with Logging {
-
-  // PatchWork.PatchWork getters and setters
-  def getEpsilon: Array[Double] = epsilon
-
-  def setEpsilon(epsilon: Array[Double]): this.type = {
-    this.epsilon = epsilon
-    this
-  }
-
-  def getMinPts: Int = minPts
-
-  def setMinPts(minPts: Int): this.type = {
-    this.minPts = minPts
-    this
-  }
-
-  // Main source code
+/**
+ * PatchWork grid-density clustering algorithm
+ *
+ * @param epsilon cell size
+ * @param minPts min number of points in a cell
+ * @param ratio density changes between cells
+ * @param minCell minimum spatial size of clusters
+ */
+class PatchWork(val epsilon: Epsilon, val minPts: Int, val ratio: Double, val minCell: Int) extends Serializable with Logging {
 
   /**
-   * This function check if the data has been cached or not
-   * uncached data hurts perfomance of the algortihm
-   * @param data
-   * @return
+   * Runs the algorithm on the input data to build the cluster.
+   * Checks if the dataset is cached.
+   *
+   * @param data Input dataset
+   * @return The model
    */
-  def run(data: RDD[Array[Double]]): PatchWordModel = {
+  def run(data: RDD[DataPoint]): PatchWorkModel = {
+    if (data.getStorageLevel == StorageLevel.NONE)
+      logWarning("The input data is not cached, which may impact performance.")
 
-    if (data.getStorageLevel == StorageLevel.NONE) {
-      logWarning("The input data is not directly cached, which may hurt performance if its"
-        + " parent RDDs are also uncached.")
-    }
-
-    // Launch the algorithm
-    val model = runAlgorithm(data)
-
-    // Warn at the end of the run as well, for increased visibility.
-    if (data.getStorageLevel == StorageLevel.NONE) {
-      logWarning("The input data was not directly cached, which may hurt performance if its"
-        + " parent RDDs are also uncached.")
-    }
-    model
+    runAlgorithm(data)
   }
 
   /**
-   * Main function of the algorithm with the map and reduce by key operations
-   * @param data
-   * @return
+   * Runs the algorithm on the input data to build the cluster.
+   *
+   * @param data Input dataset
+   * @return The model
    */
-  def runAlgorithm(data: RDD[Array[Double]]): PatchWordModel = {
-    // map part of the algorithm, creating pairs of (cellID,1)
-    val pairs: RDD[(String, Int)] = data.map(p => (p.zipWithIndex.map(x => math.ceil(x._1 / epsilon(x._2)).toInt).mkString(","), 1))
-    // reduce by key that transforms the pairs into pairs with the right value
-    val cardinalsPatchwork: RDD[(String, Int)] = pairs.reduceByKey(_ + _)
+  private def runAlgorithm(data: RDD[DataPoint]): PatchWorkModel = {
+    // creating pairs of (cellID,1), then reducing by key to list (cellId, cellCardinal)
+    // use a wrapper instead of converting to string: http://stackoverflow.com/questions/30785615/reducebykey-with-a-byte-array-as-the-key
+    val cardinalsPatchwork: RDD[(String, Int)] = data.map(p =>
+      (p.zipWithIndex.map(x => math.ceil(x._1 / epsilon(x._2)).toInt).mkString(","), 1)
+    ).reduceByKey(_ + _)
+
     // creates clusters from the set of cells got from last operation
-    val clusters = createClusters(cardinalsPatchwork.map(x => (x._1.split(",").map(_.toInt), x._2)).collect().toList, minPts)
+    val clusters = createClusters(cardinalsPatchwork.map(x =>
+      (x._1.split(",").map(_.toInt), x._2)
+    ).collect().toList, minPts)
+
     // returning the PatchWorkModel
-    new PatchWordModel(this.epsilon, cardinalsPatchwork.map(x => (x._1, x._2)), clusters)
+    new PatchWorkModel(epsilon, cardinalsPatchwork, clusters)
   }
 
   /**
@@ -160,27 +155,23 @@ class PatchWork(
    * @param p
    * @return
    */
-  def getNearCell(p: Array[Int]): List[Array[Int]] = {
-    if (p.size == 1) {
-      List(Array(p.head), Array(p.head - 1), Array(p.head + 1))
-    }
-    else {
-      List.concat(
-        getNearCell(p.tail).map(x => Array.concat(Array(p.head), x)),
-        getNearCell(p.tail).map(x => Array.concat(Array(p.head - 1), x)),
-        getNearCell(p.tail).map(x => Array.concat(Array(p.head + 1), x))
-      )
-    }
+  def getNearCell(p: Array[Int]): List[Array[Int]] = p.size match {
+    case 1 => List(Array(p.head), Array(p.head - 1), Array(p.head + 1))
+    case _ => List.concat(
+      getNearCell(p.tail).map(x => Array.concat(Array(p.head), x)),
+      getNearCell(p.tail).map(x => Array.concat(Array(p.head - 1), x)),
+      getNearCell(p.tail).map(x => Array.concat(Array(p.head + 1), x))
+    )
   }
 
   def nearCells(p: Array[Int]): List[Array[Int]] = {
-    val nearCellsList:ListBuffer[Array[Int]] = new ListBuffer[Array[Int]]
-    for (i <- Range(0,p.length)){
+    val nearCellsList: ListBuffer[Array[Int]] = new ListBuffer[Array[Int]]
+    for (i <- Range(0, p.length)) {
       val tempP1 = p.clone()
-      tempP1.update(i,p(i)-1)
+      tempP1.update(i, p(i) - 1)
       nearCellsList.append(tempP1)
       val tempP2 = p.clone()
-      tempP2.update(i,p(i)+1)
+      tempP2.update(i, p(i) + 1)
       nearCellsList.append(tempP2)
     }
     nearCellsList.toList
@@ -192,10 +183,9 @@ class PatchWork(
    * @return
    */
   def innerCells(cell: Array[Int]): List[Array[Int]] = {
-    if(cell.length < 3 ) {
+    if (cell.length < 3) {
       getNearCell(cell)
-    }
-    else {
+    } else {
       nearCells(cell)
     }
   }
@@ -233,10 +223,11 @@ class PatchWork(
   }
 
   /**
-   * creating clusters from the set of cells
-   * @param cardinalsPatchwork
-   * @param minPts
-   * @return
+   * Create clusters from the set of cells and their density
+   *
+   * @param cardinalsPatchwork List of cells and the numbers of points they contain
+   * @param minPts Minimum number of points in a cell
+   * @return The list of clusters
    */
   def createClusters(cardinalsPatchwork: List[(Array[Int], Int)], minPts: Int): List[PatchWorkCluster] = {
     // initialising an empty list of cluster
