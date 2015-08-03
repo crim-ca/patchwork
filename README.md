@@ -34,7 +34,7 @@ Tests were executed using a Cloudera CDH 5.4.0 featuring Spark 1.3.0.
 
 ## How to compile
 
-By default, you need a running local Spark server. If you want to run the algorithm on a cluster (e.g. on a YARN cluster), you can edit the ``SparkContext`` and the ``runPatchwork.sh`` script and recompile the project.
+By default, you need a running local Spark server. If you want to run the algorithm on a cluster (e.g. on a YARN cluster), you can edit the ``SparkContext`` and the ``runPatchwork.sh`` script and recompile the project. ``sbt`` is required to compile the project.
 
 To compile (at the root of the project): ``./build.sh``
 
