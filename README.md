@@ -11,7 +11,26 @@ PatchWork is a novel clustering algorithm to address those issues. It is a mixtu
 At the root of the project:
 ``./runPatchwork.sh``
 
-The demo reads data from a sample file, runs PatchWork to define the clusters, displays the clusters for each data point, then a summary of the clusters. The demo runs in a few seconds.
+The demo reads data from a sample file, runs PatchWork to define the clusters, displays the clusters for each data point, then a summary of the clusters. The demo runs in a few seconds. If everything runs smoothly, you will see something like:
+
+```
+-----------------------------------------
+number of points : 7826
+number of clusters : 5
+-----------------------------------------
+   cluster 1 has 1370 cells
+   cluster 6 has 689 cells
+   cluster 14 has 193 cells
+   cluster 19 has 117 cells
+   cluster 25 has 299 cells
+-----------------------------------------
+size of epsilon : [0.2,0.2]
+min pts in each cell : 1
+time of training : 13450 ms
+-----------------------------------------
+```
+
+Tests were executed using a Cloudera CDH 5.4.0 featuring Spark 1.3.0.
 
 ## How to compile
 
