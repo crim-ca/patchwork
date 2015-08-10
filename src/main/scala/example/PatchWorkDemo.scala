@@ -1,4 +1,4 @@
-import org.crim.spark.mllib.clustering._
+import ca.crim.spark.mllib.clustering._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ SparkContext, SparkConf }
 
