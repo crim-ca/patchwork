@@ -10,7 +10,7 @@
  *
  */
 
-package org.crim.spark.mllib.clustering
+package ca.crim.spark.mllib.clustering
 
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
