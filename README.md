@@ -40,7 +40,7 @@ To compile (at the root of the project): ``./build.sh``
 
 ## How to cite PatchWork
 
-Coming soon...
+Frank Gouineau, Tom Landry and Thomas Triplet (2016) **PatchWork, a Scalable Density-Grid Clustering Algorithm**. In Proc. *31th ACM Symposium On Applied Computing*, Data-Mining track, Pisa, Italia (accepted)
 
 ## Contact
 
