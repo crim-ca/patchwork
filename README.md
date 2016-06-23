@@ -78,4 +78,4 @@ To compile (at the root of the project): ``./build.sh``
 
 ## Contact
 
-For all questions, contact me at thomas.triplet@crim.ca.
+For all questions, contact me at thomastriplet@gmail.com.
