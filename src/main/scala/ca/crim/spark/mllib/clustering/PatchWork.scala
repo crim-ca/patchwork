@@ -12,7 +12,7 @@
 
 package ca.crim.spark.mllib.clustering
 
-import org.apache.spark.Logging
+import org.apache.log4j.LogManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 
@@ -112,7 +112,7 @@ class PatchWorkModel(private var epsilon: Epsilon,
  * @param ratio density changes between cells
  * @param minCell minimum spatial size of clusters
  */
-class PatchWork(val epsilon: Epsilon, val minPts: Int, val ratio: Double, val minCell: Int) extends Serializable with Logging {
+class PatchWork(val epsilon: Epsilon, val minPts: Int, val ratio: Double, val minCell: Int) extends Serializable {
 
   /**
    * Runs the algorithm on the input data to build the cluster.
@@ -122,8 +122,10 @@ class PatchWork(val epsilon: Epsilon, val minPts: Int, val ratio: Double, val mi
    * @return The model
    */
   def run(data: RDD[DataPoint]): PatchWorkModel = {
-    if (data.getStorageLevel == StorageLevel.NONE)
-      logWarning("The input data is not cached, which may impact performance.")
+    if (data.getStorageLevel == StorageLevel.NONE) {
+      val log = LogManager.getRootLogger
+      log.warn("The input data is not cached, which may impact performance.")
+    }
 
     runAlgorithm(data)
   }

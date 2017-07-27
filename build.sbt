@@ -1,16 +1,17 @@
 name := "patchwork"
 
-version := "1.0"
+version := "1.1"
 
-scalaVersion := "2.10.0"
+scalaVersion := "2.11.7"
+
+val sparkVersion = System.getProperty("spark.version", "2.1.0")
 
 libraryDependencies ++= Seq(
-  "org.apache.spark"  %% "spark-core"              % "1.3.0",
-  "org.apache.spark"  %% "spark-mllib"              % "1.3.0",
-  "org.apache.spark"  %% "spark-sql"               % "1.3.0",
-  "org.apache.spark"  %% "spark-mllib"             % "1.3.0",
+  "org.apache.spark"  %% "spark-core"              % sparkVersion,
+  "org.apache.spark"  %% "spark-mllib"              % sparkVersion,
+  "org.apache.spark"  %% "spark-sql"               % sparkVersion,
+  "org.apache.spark"  %% "spark-mllib"             % sparkVersion,
   "org.apache.commons" % "commons-math3" % "3.5",
-  "org.scalatest" % "scalatest_2.10" % "2.1.3" % "test",
   "com.github.scopt" %% "scopt" % "3.2.0")
 
 scalariformSettings
