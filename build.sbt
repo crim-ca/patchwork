@@ -10,13 +10,10 @@ libraryDependencies ++= Seq(
   "org.apache.spark"  %% "spark-core"              % sparkVersion,
   "org.apache.spark"  %% "spark-mllib"              % sparkVersion,
   "org.apache.spark"  %% "spark-sql"               % sparkVersion,
-  "org.apache.spark"  %% "spark-mllib"             % sparkVersion,
   "org.apache.commons" % "commons-math3" % "3.5",
   "com.github.scopt" %% "scopt" % "3.2.0")
 
 scalariformSettings
-
-resolvers += "Akka Repository" at "http://repo.akka.io/releases/"
 
 resolvers += Resolver.sonatypeRepo("public")
 

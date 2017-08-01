@@ -15,18 +15,17 @@ import org.apache.spark.{ SparkContext, SparkConf }
  */
 object PatchWorkDemo extends App {
   val sc = new SparkContext(new SparkConf()
-    .setMaster("local[4]")
     .setAppName("PatchworkDemo")
   )
 
   // Reading and parsing Data
-  val dataRDD: RDD[Array[Double]] = sc.textFile("datasets/Compound.csv")
+  val dataRDD: RDD[Array[Double]] = sc.textFile("hdfs:/datasets/Compound.csv")
     .map(_.split(",")).map(s => Array(s(0).toDouble, s(1).toDouble)).cache
 
   // PatchWork parameters
-  val epsilon = Array(0.2, 0.2)
+  val epsilon = Array(0.4, 0.4)
   val minPts = 1
-  val minCellInCluster = 40
+  val minCellInCluster = 20
   val ratio = 0.0
 
   // Training a model with the data
